@@ -1,0 +1,269 @@
+---
+title: "Epilepsy & Brain Atrophy: Predictive Modeling"
+author: "Aashi Sachania"
+output: html_document
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install.packages("tidyverse")
+# install.packages("moderndive")
+library(tidyverse)
+library(moderndive)
+```
+
+# Temporal Lobe Epilepsy and Hippocampus Size
+The impact of epilepsy on the brain extends beyond individual seizures. Repeated seizure activity over time is associated with measurable reductions in hippocampal volume, a process known as neural atrophy. However, it remains unclear whether this degradation is symmetric. Specifically, it is uncertain whether the brain shrinks uniformly on both sides or if the hemisphere where seizures originate experiences greater atrophy. In this analysis, linear regression was used to model hippocampal volume as a function of time since diagnosis, enabling comparison of atrophy trajectories between hemispheres.
+
+## Acquire Data
+```{r}
+epilepsy_dat <- read.csv("https://raw.githubusercontent.com/cgmr-asu/NEU290/main/EpilepsyHC.csv")
+```
+
+## Explore Data
+```{r}
+glimpse(epilepsy_dat)
+```
+The variables in this data frame represent the number of years since a participant was diagnosed with epilepsy (Years), the volume of the Ipsilateral Hippocampus, the HC on the side where seizures originate, in cubic centimeters (IpsilateralHC) and the volume of the Contralateral Hippocampus, the HC on the side opposite to where seizures begin (ContralateralHC).
+
+## Model Data
+Two linear models were built to compare atrophy trajectories across hemispheres — one for the ipsilateral hippocampus and one for the contralateral hippocampus — to determine whether volume loss progresses equally on both sides or is concentrated on the seizure-origin side.
+
+### Exploratory Visualization of Ipsilateral Hippocampal Volume
+A scatterplot with a fitted regression line reveals the relationship between years since diagnosis and ipsilateral hippocampal volume.
+```{r}
+epilepsy_dat %>%
+  ggplot(aes(x = Years, y = IpsilateralHC)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Ipsilateral Hippocampus Volume by Years Since Diagnosis",
+    x = "Years Since Diagnosis",
+    y = "Ipsilateral HC Volume(cm³)"
+  )
+```
+
+### Linear Regression Model of Ipsilateral Atrophy
+A linear regression model was fit to examine the relationship between ipsilateral hippocampal volume and years since epilepsy diagnosis. The resulting model coefficients are shown below.
+
+```{r}
+IpsiModel <- lm(IpsilateralHC ~ Years, data = epilepsy_dat)
+get_regression_table(IpsiModel)
+```
+
+### Long-Term Volume Prediction
+Using the model coefficients, the predicted ipsilateral hippocampus size for someone diagnosed with epilepsy for 65 years was calculated below.
+
+```{r}
+best_guess_65 <- -0.013 * 65 + 2.96
+best_guess_65
+```
+
+### Contralateral Hippocampal Volume Across Disease Duration
+The same visualization approach was applied to the contralateral hippocampus.
+```{r}
+epilepsy_dat %>%
+  ggplot(aes(x = Years, y = ContralateralHC)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Contralateral Hippocampus Volume by Years Since Diagnosis",
+    x = "Years Since Diagnosis",
+    y = "Contralateral HC Volume (cm³)"
+  )
+```
+
+### Linear Modeling of Contralateral Atrophy
+A linear regression model was fit to evaluate how contralateral hippocampal volume changes as a function of years since epilepsy diagnosis. The resulting model coefficients are shown below.
+
+```{r}
+ContraModel <- lm(ContralateralHC ~ Years, data = epilepsy_dat)
+get_regression_table(ContraModel)
+```
+
+### Predicting Contralateral Hippocampal Volume
+Using the model coefficients, the predicted contralateral hippocampus size for someone diagnosed with epilepsy for 22.5 years was calculated below.
+
+```{r}
+best_guess_22.5 <- 2.37 + (0 * 22.5)
+best_guess_22.5
+```
+
+# Temporal Rate Perception
+A second analysis examined how prior exposure to rhythmic stimuli affects rate perception. Specifically, does exposure to fast rhythms prime participants to perceive subsequent stimuli as faster (priming hypothesis), or does it cause them to perceive new stimuli as *slower* due to adaptation (adaptation hypothesis)? A single-participant dataset of 150 trials was analyzed using linear regression to test these competing hypotheses.
+
+## Acquire Data
+```{r}
+timing_data <- read.csv("https://raw.githubusercontent.com/cgmr-asu/NEU290/main/timing_df.csv")
+```
+
+## Explore Data
+```{r}
+glimpse(timing_data)
+```
+This data includes responses from a single participant on 150 trials of an experiment. In each trial, the participant first listened to a rhythm that repeated every 333 ms (a "baseline" rhythm), every 666 ms (a "slow" rhythm), or every 166.6 ms (a "fast" rhythm). After the participant was exposed to any of these rhythms for 20 repetitions, they were presented a single repetition of a 333 ms rhythm and asked to reproduce it by tapping their finger ten times. The average tapped interval (in ms) is recorded as ProducedInterval. ExposureRate indicates which rhythm condition the participant heard. ProducedInterval serves as the measure of perceived tempo: values below 333 ms indicate the participant perceived the rhythm as faster than it was; values above 333 ms indicate slower perception.
+
+## Model the Data: Evaluating Priming and Adaptation Hypotheses
+
+### Distribution of Produced Intervals Across Exposure Conditions
+
+```{r}
+timing_data %>%
+  ggplot(aes(x = ExposureRate, y = ProducedInterval, fill = ExposureRate)) +
+  geom_boxplot() +
+  labs(
+    title = "Effect of Exposure Rate on Produced Intervals",
+    x = "Exposure Rate Condition",
+    y = "Produced Interval (ms)"
+  )
+```
+
+### Modeling the Effect of Prior Rhythm Exposure
+A linear regression model was used to examine how perceived rhythm rate varied across different prior exposure conditions. The estimated model coefficients are presented below.
+
+```{r}
+TimingModel <- lm(ProducedInterval ~ ExposureRate, data = timing_data)
+get_regression_table(TimingModel)
+```
+
+### Interpretation of Temporal Adaptation Effects
+The model coefficients show a baseline average of 356 ms, with fast-exposure trials producing an average of 397.3 ms — meaning participants tapped *slower* after hearing fast rhythms, not faster. This supports the **adaptation hypothesis**: prior exposure to fast rhythms causes participants to perceive subsequent stimuli as slower than they actually are.
+
+# Multiple Linear Regression and Analyses
+This section extends the earlier analyses by applying multiple linear regression techniques across two separate datasets. In both studies, data visualizations, regression modeling, and predictive analyses were used to examine relationships between behavioral and neurobiological variables.
+
+## Library Initialization
+```{r}
+library(dplyr)
+library(ggplot2)
+library(moderndive)
+```
+
+# Analysis I: Epilepsy and HC Size
+Both simple and multiple regression were used to model hippocampal volume, enabling predictions for individuals at different stages of their diagnosis. The dataset contains three variables: years since epilepsy onset (Years), hippocampal volume in cubic centimeters (Volume), and brain side — ipsilateral or contralateral (Side).
+
+## Data Acquisition
+```{r}
+epi_dat <- read.csv("https://raw.githubusercontent.com/cgmr-asu/NEU290/main/epi_dat.csv")
+```
+
+## Dataset Overview
+```{r}
+glimpse(epi_dat)
+```
+
+## Initial Linear Modeling of Hippocampal Volume
+A simple linear regression model was used as a starting point to examine how hippocampal volume changes with disease duration.
+
+```{r}
+epi_dat %>% ggplot(aes(x = Years, y = Volume)) + 
+  geom_point() +
+  geom_smooth(method = 'lm', se = 0)
+```
+
+## Simple Linear Regression Model
+Simple linear regression was used to model hippocampal volume as a function of years since diagnosis.
+```{r}
+simple_model <- lm(Volume ~ Years, data = epi_dat)
+simple_model %>%
+  get_regression_table()
+```
+
+## Predicting Hippocampal Volume From Disease Duration
+Using the simple model coefficients, hippocampal volume was predicted for a patient 7 years post-diagnosis.
+
+```{r}
+Simple_BestGuess_ipsi7 <- simple_model$coefficients[1] + simple_model$coefficients[2] * 7
+Simple_BestGuess_ipsi7
+```
+
+## Incorporating Hemisphere-Specific Effects
+To improve prediction specificity, a multiple regression model was built incorporating brain side as an additional predictor. The diverging slopes in the visualization below indicate an interaction model is appropriate, as atrophy rates differ between hemispheres.
+
+```{r}
+epi_dat %>% ggplot(aes(x = Years, y = Volume, color = Side)) + 
+  geom_point() +
+  geom_smooth(method = 'lm', se = 0)
+```
+
+## Multiple Regression Model Across Hemispheres
+An interaction model was fit to generate hemisphere-specific volume predictions across different disease durations.
+```{r}
+multiple_model <- lm(Volume ~ Years * Side, data = epi_dat)
+multiple_model %>%
+  get_regression_table()
+```
+
+## Hemisphere-Specific Volume Prediction
+The same prediction was generated using the multiple regression model, now accounting for brain side.
+
+```{r}
+Multiple_BestGuess_ipsi7 <- predict(multiple_model, 
+                                    newdata = data.frame(Years = 7, Side = "IpsilateralHC"))
+Multiple_BestGuess_ipsi7
+```
+
+# Analysis II: Cognitive Load and Postural Balance
+The second analysis examined whether cognitive load interferes with postural balance. Participants balanced on a pressure-sensitive pedestal either alone or while solving math problems. Because body weight independently affects balance dynamics, it was included as a covariate — allowing the model to isolate the effect of the cognitive task beyond what weight alone would predict. Center of pressure speed (CP_Speed) served as the dependent variable: higher values indicate greater postural instability.
+
+## Data Acquisition
+```{r}
+balance_dat <- read.csv("https://raw.githubusercontent.com/cgmr-asu/NEU290/main/balance_dat.csv")
+```
+
+## Dataset Overview
+```{r}
+glimpse(balance_dat)
+```
+
+## Visualizing the Relationship Between Task, Weight, and Balance
+The visualization below shows how CP_Speed varies with weight across both task conditions, with fitted regression lines for each group.
+```{r}
+balance_dat %>%
+  ggplot(aes(x = weight_kg, y = CP_Speed, color = task)) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = 0)
+```
+
+## Modeling Balance Performance With Multiple Regression
+A parallel slopes model was selected, as the effect of cognitive task on balance did not appear to interact with body weight.
+```{r}
+balance_model <- lm(CP_Speed ~ weight_kg + task, data = balance_dat)
+balance_model %>%
+  get_regression_table()
+```
+
+## Interpreting the Effect of Cognitive Load on Balance
+Performing math problems while balancing increased center of pressure speed by 0.067 beyond what would be expected for someone who does not perform math problems.
+
+## Evaluating Task–Weight Interactions
+The effect of math problem-solving on balance did not depend on the weight of an individual in this dataset. This was accounted for by selecting a parallel slopes model rather than an interaction model.
+
+## Predicting Balance Performance During Dual-Task Conditions
+
+```{r}
+BestGuess_70Math <- predict(balance_model,
+                            newdata = data.frame(weight_kg = 70, task = "Balance+Math"))
+BestGuess_70Math
+```
+
+## Predicting Baseline Balance Performance
+
+```{r}
+BestGuess_80NoMath <- predict(balance_model,
+                            newdata = data.frame(weight_kg = 80, task = "Balance"))
+BestGuess_80NoMath
+```
+
+# Results and Discussion
+
+Across analyses, linear regression models were effective in characterizing relationships between neurological, perceptual, and behavioral variables. In the epilepsy analyses, hippocampal volume generally decreased as years since diagnosis increased, supporting the idea that temporal lobe epilepsy is associated with progressive neural atrophy. The ipsilateral hippocampus, located on the same side as seizure origin, demonstrated a stronger negative relationship with disease duration compared to the contralateral hippocampus, suggesting that seizure-related degeneration may be asymmetric across hemispheres.
+
+The temporal perception analysis provided evidence more consistent with the adaptation hypothesis than the priming hypothesis. Participants exposed to faster rhythms subsequently produced slower tapping intervals, indicating that prior sensory exposure influenced later perception of temporal rate. This finding suggests that perceptual systems dynamically recalibrate following rhythmic stimulation rather than simply carrying forward the previously experienced tempo.
+
+The multiple regression analyses further demonstrated how incorporating multiple predictors can improve interpretability of complex biological and behavioral data. In the hippocampal modeling analysis, including hemisphere-specific information allowed for more precise volume predictions. Similarly, in the balance analysis, cognitive load and body weight jointly contributed to variation in balance performance. Performing mathematical tasks while balancing was associated with increased center-of-pressure speed, suggesting that divided attention may interfere with postural stability.
+
+Overall, these analyses demonstrate how statistical modeling techniques such as simple and multiple linear regression can be applied to neuroscience and behavioral datasets to identify meaningful patterns, generate predictions, and evaluate competing theoretical explanations. Together, the findings highlight the value of quantitative modeling approaches in understanding both neural degeneration and human perception and behavior.
